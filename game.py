@@ -3,16 +3,12 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
+import datetime  # Importe datetime para obter o horário atual
+import os
+os.environ["SDL_VIDEODRIVER"] = "x11"
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
-
-# reset
-# reward
-# play(action) -> direction
-# game_iteration
-# is_collision
-
 
 class Direction(Enum):
     RIGHT = 1
@@ -29,9 +25,11 @@ BLUE2 = (0, 100, 255)
 BLACK = (0, 0, 0)
 
 BLOCK_SIZE = 20
-SPEED = 10
+SPEED = 50
 
 class SnakeGameAI:
+    num_games = 0  # Contador de jogos
+    max_score = 0  # Recorde de pontuação
     
     def __init__(self, w=640, h=480):
         self.w = w
@@ -41,21 +39,17 @@ class SnakeGameAI:
         self.clock = pygame.time.Clock()
         self.reset()
         
-        
-        
     def reset(self):
-        
+        SnakeGameAI.num_games += 1  # Incrementa o contador de jogos
         self.direction = Direction.RIGHT
-        
         self.head = Point(self.w/2, self.h/2)
         self.snake = [self.head,
-                        Point(self.head.x-BLOCK_SIZE, self.head.y),
-                        Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
+                      Point(self.head.x-BLOCK_SIZE, self.head.y),
+                      Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
         self.score = 0
         self.food = None
         self._place_food()
         self.frame_iteration = 0
-        
     
     def _place_food(self):
         x = random.randint(0, (self.w-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
@@ -70,8 +64,7 @@ class SnakeGameAI:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            
-                    
+        
         self._move(action)
         self.snake.insert(0, self.head)
         
@@ -80,12 +73,18 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -10
+            # Atualiza o recorde se necessário
+            if self.score > SnakeGameAI.max_score:
+                SnakeGameAI.max_score = self.score
             return reward, game_over, self.score
         
         if self.head == self.food:
             self.score += 1
             reward = 10
             self._place_food()
+            # Gera relatório se o score for múltiplo de 10
+            if self.score % 10 == 0:
+                self._generate_report()
         else:
             self.snake.pop()
             
@@ -101,39 +100,32 @@ class SnakeGameAI:
             return True
         if pt in self.snake[1:]:
             return True
-        
         return False
     
     def _update_ui(self):
         self.display.fill(BLACK)
-        
         for pt in self.snake:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
-            
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        
         text = font.render("Score: " + str(self.score), True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()
         
     def _move(self, action):
-        #[straight, right, left]
-        
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
         
         if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx] #no change
+            new_dir = clock_wise[idx]
         elif np.array_equal(action, [0, 1, 0]):
             next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx] #right turn r -> d -> l -> u
-        else: # [0, 0, 1]
+            new_dir = clock_wise[next_idx]
+        else:
             next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx] #left turn r -> u -> l -> d
+            new_dir = clock_wise[next_idx]
             
         self.direction = new_dir
-        
         
         x = self.head.x
         y = self.head.y
@@ -147,4 +139,14 @@ class SnakeGameAI:
             y -= BLOCK_SIZE
             
         self.head = Point(x, y)
-        
+    
+    def _generate_report(self):
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_record = max(SnakeGameAI.max_score, self.score)
+        print(f"\n--- Relatório (Score {self.score}) ---")
+        print(f"Horário: {current_time}")
+        print(f"Total de Jogos: {SnakeGameAI.num_games}")
+        print(f"Score Atual: {self.score}")
+        print(f"Recorde: {current_record}")
+        print(f"Modelos Utilizados: 1")  # Atualize conforme necessário
+        print("------------------------------\n")
