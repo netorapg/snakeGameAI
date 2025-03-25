@@ -5,7 +5,6 @@ from collections import namedtuple
 import numpy as np
 import datetime
 import os
-os.environ["SDL_VIDEODRIVER"] = "x11"
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
