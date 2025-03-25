@@ -3,6 +3,9 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
+import datetime
+import os
+os.environ["SDL_VIDEODRIVER"] = "x11"
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -25,6 +28,8 @@ BLOCK_SIZE = 20
 SPEED = 1000
 
 class SnakeGameAI:
+    num_games = 0
+    max_score = 0
     
     def __init__(self, w=640, h=480):
         self.w = w
@@ -33,10 +38,15 @@ class SnakeGameAI:
         pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.reset()
+        self.steps_counter = 0
+        self.punishment = -10
+        self.reward = 10
+        self.speed = SPEED
+
         
     def reset(self):
+        SnakeGameAI.num_games += 1
         self.direction = Direction.RIGHT
-        
         self.head = Point(self.w/2, self.h/2)
         self.snake = [self.head,
                       Point(self.head.x - BLOCK_SIZE, self.head.y),
@@ -45,6 +55,8 @@ class SnakeGameAI:
         self.food = None
         self._place_food()
         self.frame_iteration = 0
+        self.steps_counter = 0
+
         
     def _place_food(self):
         x = random.randint(0, (self.w - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
@@ -52,9 +64,11 @@ class SnakeGameAI:
         self.food = Point(x, y)
         if self.food in self.snake:
             self._place_food()
-    
+
     def play_step(self, action):
         self.frame_iteration += 1
+        self.steps_counter += 1
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -71,6 +85,9 @@ class SnakeGameAI:
         # Penalidade se bater na parede ou no próprio corpo
         if self.is_collision() or self.frame_iteration > 50 * len(self.snake):
             game_over = True
+            reward = self.punishment
+            if self.score > SnakeGameAI.max_score:
+                SnakeGameAI.max_score = self.score
             reward = -20
             return reward, game_over, self.score
 
@@ -84,6 +101,8 @@ class SnakeGameAI:
                 reward += 25
             
             self._place_food()
+            if self.score % 10 == 0:
+                self._generate_report()
         else:
             self.snake.pop()
 
@@ -102,6 +121,7 @@ class SnakeGameAI:
 
         return reward, game_over, self.score
 
+
     def is_collision(self, pt=None):
         if pt is None:
             pt = self.head
@@ -109,25 +129,20 @@ class SnakeGameAI:
             return True
         if pt in self.snake[1:]:
             return True
-        
         return False
-    
+
     def _update_ui(self):
         self.display.fill(BLACK)
-        
         for pt in self.snake:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x + 4, pt.y + 4, 12, 12))
             
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        
         text = font.render("Score: " + str(self.score), True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()
-        
+
     def _move(self, action):
-        #[straight, right, left]
-        
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
         
