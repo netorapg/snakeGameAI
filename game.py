@@ -3,7 +3,7 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
-import datetime  # Importe datetime para obter o horário atual
+import datetime
 import os
 os.environ["SDL_VIDEODRIVER"] = "x11"
 
@@ -28,8 +28,8 @@ BLOCK_SIZE = 20
 SPEED = 50
 
 class SnakeGameAI:
-    num_games = 0  # Contador de jogos
-    max_score = 0  # Recorde de pontuação
+    num_games = 0
+    max_score = 0
     
     def __init__(self, w=640, h=480):
         self.w = w
@@ -38,9 +38,13 @@ class SnakeGameAI:
         pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.reset()
-        
+        self.steps_counter = 0
+        self.punishment = -10
+        self.reward = 10
+        self.speed = SPEED
+
     def reset(self):
-        SnakeGameAI.num_games += 1  # Incrementa o contador de jogos
+        SnakeGameAI.num_games += 1
         self.direction = Direction.RIGHT
         self.head = Point(self.w/2, self.h/2)
         self.snake = [self.head,
@@ -50,16 +54,19 @@ class SnakeGameAI:
         self.food = None
         self._place_food()
         self.frame_iteration = 0
-    
+        self.steps_counter = 0
+
     def _place_food(self):
         x = random.randint(0, (self.w-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         y = random.randint(0, (self.h-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         self.food = Point(x, y)
         if self.food in self.snake:
             self._place_food()
-    
+
     def play_step(self, action):
         self.frame_iteration += 1
+        self.steps_counter += 1
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -72,27 +79,25 @@ class SnakeGameAI:
         game_over = False
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
-            reward = -10
-            # Atualiza o recorde se necessário
+            reward = self.punishment
             if self.score > SnakeGameAI.max_score:
                 SnakeGameAI.max_score = self.score
             return reward, game_over, self.score
         
         if self.head == self.food:
             self.score += 1
-            reward = 10
+            reward = self.reward
             self._place_food()
-            # Gera relatório se o score for múltiplo de 10
             if self.score % 10 == 0:
                 self._generate_report()
         else:
             self.snake.pop()
             
         self._update_ui()
-        self.clock.tick(SPEED)
+        self.clock.tick(self.speed)
         
         return reward, game_over, self.score
-    
+
     def is_collision(self, pt=None):
         if pt is None:
             pt = self.head
@@ -101,7 +106,7 @@ class SnakeGameAI:
         if pt in self.snake[1:]:
             return True
         return False
-    
+
     def _update_ui(self):
         self.display.fill(BLACK)
         for pt in self.snake:
@@ -111,7 +116,7 @@ class SnakeGameAI:
         text = font.render("Score: " + str(self.score), True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()
-        
+
     def _move(self, action):
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
@@ -139,14 +144,27 @@ class SnakeGameAI:
             y -= BLOCK_SIZE
             
         self.head = Point(x, y)
-    
+
     def _generate_report(self):
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         current_record = max(SnakeGameAI.max_score, self.score)
+        
         print(f"\n--- Relatório (Score {self.score}) ---")
         print(f"Horário: {current_time}")
         print(f"Total de Jogos: {SnakeGameAI.num_games}")
         print(f"Score Atual: {self.score}")
         print(f"Recorde: {current_record}")
-        print(f"Modelos Utilizados: 1")  # Atualize conforme necessário
+        
+        print("\nCondições da IA:")
+        print(f"- Recompensa por comida: +{self.reward} pontos")
+        print(f"- Punição por colisão/tempo: {self.punishment} pontos")
+        print(f"- Tamanho do corpo: {len(self.snake)} segmentos")
+        print(f"- Passos dados: {self.steps_counter} movimentos")
+        print(f"- Velocidade: {self.speed} FPS ({BLOCK_SIZE}px por quadro)")
+        
+        print("\nRegras de Movimento:")
+        print("- Punição aplicada se:")
+        print("  * Colidir com parede ou corpo")
+        print("  * Exceder 100 movimentos por segmento")
+        print("- Recompensa por coletar comida")
         print("------------------------------\n")

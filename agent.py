@@ -5,6 +5,9 @@ from collections import deque
 from game import SnakeGameAI, Direction, Point
 from model import Linear_QNet, QTrainer
 from helper import plot
+import matplotlib
+matplotlib.use('Qt5Agg') 
+import matplotlib.pyplot as plt
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -103,6 +106,9 @@ def train():
     record = 0
     agent = Agent()
     game = SnakeGameAI()
+
+    plt.ion()
+    plt.show()
     
     while True:
         # get old state
@@ -135,6 +141,7 @@ def train():
                 mean_score = total_score / agent.n_games
                 plot_mean_scores.append(mean_score)
                 plot(plot_scores, plot_mean_scores)
+                plt.gcf().canvas.flush_events()
 
 
 if __name__ == '__main__':
