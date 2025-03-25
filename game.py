@@ -22,7 +22,7 @@ BLUE2 = (0, 100, 255)
 BLACK = (0, 0, 0)
 
 BLOCK_SIZE = 20
-SPEED = 600
+SPEED = 1000
 
 class SnakeGameAI:
     
@@ -69,33 +69,33 @@ class SnakeGameAI:
         game_over = False
 
         # Penalidade se bater na parede ou no próprio corpo
-        if self.is_collision() or self.frame_iteration > 100 * len(self.snake):
+        if self.is_collision() or self.frame_iteration > 50 * len(self.snake):
             game_over = True
-            reward = -10
+            reward = -20
             return reward, game_over, self.score
 
         # Se a cobra comeu a comida
         if self.head == self.food:
             self.score += 1
-            reward = 10  # Recompensa base
+            reward = 15  # Recompensa base
             
             # Bônus se comer rapidamente
             if self.frame_iteration < 50:
-                reward += 5
+                reward += 25
             
             self._place_food()
         else:
             self.snake.pop()
 
         # Recompensa por sobrevivência
-        reward += 0.1  
+        reward += 0.5
 
         # Recompensa por se aproximar da comida
         new_distance = self._distance_to_food(self.head)
         if new_distance < prev_distance:
-            reward += 1  # Se aproximou da comida
+            reward += 2  # Se aproximou da comida
         else:
-            reward -= 1  # Se afastou da comida
+            reward -= 2  # Se afastou da comida
 
         self._update_ui()
         self.clock.tick(SPEED)
